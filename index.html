@@ -1,0 +1,83 @@
+<html>
+   <head>
+   <script>
+       const webSocketChat = new WebSocket('ws://localhost:7000/chat');
+       const webSocketSystem = new WebSocket('ws://localhost:7000/system');
+       webSocketChat.onmessage = (event) => {
+           const data1 = JSON.parse(event.data);
+           console.log(data1);
+       };
+
+       webSocketSystem.onmessage = (event) => {
+           const data1 = JSON.parse(event.data);
+           console.log(data1);
+       };
+
+       function sendChat() {
+           const data = {
+            msg: document.getElementById('chat').value,
+            channel: 1,
+            token: document.getElementById('token').value,
+          };
+           webSocketChat.send(JSON.stringify(data));
+        }
+
+       function sendSystem() {
+          const data = {
+            msg: document.getElementById('system').value,
+            token: document.getElementById('token').value,
+          };
+          webSocketSystem.send(JSON.stringify(data));
+       }
+
+       function IAmOnline() {
+          const data = {
+            msg: 'IAmOnline',
+            token: document.getElementById('token').value,
+          };
+          webSocketSystem.send(JSON.stringify(data));
+       }
+
+       async function postData() {
+        post().then(res => {
+          console.log(res);
+        })
+       }
+
+       async function post() {
+        const url = 'http://localhost:5000/login';
+        const data = {
+          login: "33",
+          pass: "33"
+         };
+        // Default options are marked with *
+        const response = await fetch(url, {
+          method: 'POST', // *GET, POST, PUT, DELETE, etc.
+          //mode: 'cors', // no-cors, *cors, same-origin
+         // cache: 'default', // *default, no-cache, reload, force-cache, only-if-cached
+          //credentials: 'same-origin', // include, *same-origin, omit
+          headers: {
+            'Content-Type': 'application/json;charset=utf-8'
+            // 'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          //redirect: 'follow', // manual, *follow, error
+          //referrerPolicy: 'no-referrer', // no-referrer, *no-referrer-when-downgrade, origin, origin-when-cross-origin, same-origin, strict-origin, strict-origin-when-cross-origin, unsafe-url
+          body: JSON.stringify(data) // body data type must match "Content-Type" header
+        });
+          const content = await response.json(); // parses JSON response into native JavaScript objects
+          return content.message;
+       }
+
+     </script>
+   </head>
+
+   <body>
+    <input id='token' type='text' placeholder='token'/><br/>
+    <input type='text' id='chat'/><button id='sendchat' onClick='sendChat()'>Send chat</button><br/>
+    <input type='text' id='system' /><button id='sendsys' onClick='sendSystem()'>Send sys</button>
+    <button onClick='IAmOnline()'>IAmOnline</button>
+    <br/>
+    <button onClick='postData()'>TEST LOGIN</button>
+   </body>
+
+</html>
