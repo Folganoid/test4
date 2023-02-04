@@ -8,9 +8,10 @@ export default class DBService {
   userTokens = {};
   userList = [];
   channelList = [];
+  messageList = [];
 
   async start() {
-    const users = await this.makeQuery('SELECT u.id, u.login, u.email, u.created FROM users as u;');
+    const users = await this.makeQuery("SELECT u.id, u.login, u.email, u.created, u.image FROM users as u;");
     this.userList = users.rows;
     const userChannels = await this.makeQuery('SELECT c.user_id, c.channel_id FROM channelusers as c;');
     for (let i of this.userList) {
@@ -20,11 +21,15 @@ export default class DBService {
         if (z.user_id === i.id) i.channels.push(z.channel_id);
       }
     }
+    console.log(this.userList.length + ' Users data cached OK...')
 
-    console.log('users data cached...')
-    const channels = await this.makeQuery('SELECT c.id, c.name, c.description FROM channels as c;');
+    const messages = await this.makeQuery('SELECT * FROM messages ORDER BY created DESC LIMIT 10000;');
+    this.messageList = messages.rows;
+    console.log(this.messageList.length + ' Messages data cached OK...')
+
+    const channels = await this.makeQuery('SELECT c.id, c.name, c.description, c.owner_user_id FROM channels as c;');
     this.channelList = channels.rows;
-    console.log('channels data cached...')
+    console.log(this.channelList.length + ' Channels data cached OK...')
   }
 
   async makeQuery(str, values = []) {
@@ -34,11 +39,38 @@ export default class DBService {
         host: this.cfg.postgresPath,
         database: this.cfg.postgresDB,
         password: this.cfg.postgresPass,
-        port: this.cfg.postgresPort
+        port: this.cfg.postgresPort,
+        ssl:true
       })
                
       await client.connect();
       const res = await client.query(str, values);
+      await client.end();
+      return res;
+
+    } catch (error) {
+      console.log('DB Connection ERROR');
+      throw error;
+    }
+  }
+
+  async makeMultipleQuery(queries) {
+    try {
+      const client = new pg.Client({
+        user: this.cfg.postgresUser,
+        host: this.cfg.postgresPath,
+        database: this.cfg.postgresDB,
+        password: this.cfg.postgresPass,
+        port: this.cfg.postgresPort,
+        ssl:true
+      })
+               
+      let res = [];
+      await client.connect();
+      for (let i of queries) {
+        let r = await client.query(i.sql, i.params);
+        res.push(r);
+      }
       await client.end();
       return res;
 
@@ -56,9 +88,106 @@ export default class DBService {
     return this.userList.sort((a, b) => (a.id > b.id) ? 1 : -1);
   }
 
-  async getMessages() {
-    const res = await this.makeQuery('SELECT * FROM messages');
-    return res.rows;
+  getMessages(ids = []) {
+    return this.messageList.filter(e => ids.includes(String(e.channel_id)));
+  }
+
+  async createChannel(user_id, name, desc) {
+    try {
+      for (let i of this.channelList) {
+        if (i.name === name) return -1;
+      }
+      const res = await this.makeQuery('INSERT INTO channels (name, description, owner_user_id) VALUES ($1, $2, $3)', [name, desc, user_id]);
+      if (res) {
+        const channel = await this.getChannelByName(name);
+        if (channel && channel.id) {
+          this.channelList.push(channel);
+          await this.makeQuery('INSERT INTO channelusers (user_id, channel_id) VALUES ($1, $2)', [user_id, channel.id]);
+          for (let i = 0 ; i < this.userList.length; i++) {
+            if (+this.userList[i].id === +user_id) {
+              this.userList[i].channels.push(channel.id);
+            }
+          }
+          return channel;
+        }
+        return 0;
+      } else {
+        return 0;
+      }
+    } catch (error) {
+      console.log('ERROR: ' + error.message);
+      return 0;
+    }
+  }
+
+  async updateChannel(id, name = '', desc = '') {
+    try {
+      for (let i of this.channelList) {
+        if (i.name === name) return -1;
+      }
+
+      if (name !== '') {
+        const res = await this.makeQuery('UPDATE channels SET name = $1 WHERE id = $2', [name, id]);
+        if (res) {
+          for (let i = 0 ; i < this.channelList.length; i++) {
+            if (this.channelList[i].id === id) this.channelList[i].name = name;
+          }
+        }
+      }
+      if (desc !== '') {
+        const res2 = await this.makeQuery('UPDATE channels SET description = $1 WHERE id = $2', [desc, id]);
+        if (res2) {
+          for (let i = 0 ; i < this.channelList.length; i++) {
+            if (this.channelList[i].id === id) this.channelList[i].description = desc;
+          }
+        }
+      }
+      return this.getChannelById(id);
+    } catch (error) {
+      console.log('ERROR: ' + error.message);
+      return 0;
+    }
+  }
+
+  async deleteChannel(id) {
+    try {
+      await this.makeQuery('DELETE FROM channelusers WHERE channel_id = $1', [id]);
+      await this.makeQuery('DELETE FROM channels WHERE id = $1', [id]);
+      this.channelList = this.channelList.filter(e => e.id !== id);
+      for (let i = 0; i < this.userList.length; i++) {
+        this.userList[i].channels = this.userList[i].channels.filter(e => e !== id);
+      }
+
+    } catch (error) {
+      console.log('ERROR: ' + error.message);
+      return 0;
+    }
+  }
+
+  async getChannelByName(name) {
+    try {
+      const res = await this.makeQuery('SELECT * FROM channels WHERE name = $1', [name]);
+      if (res.rows.length > 0 && res.rows[0].id) {
+        return res.rows[0];
+      }
+      return null;
+    } catch (error) {
+      console.log('ERROR: ' + error.message);
+      return null;
+    }
+  }
+
+  async getChannelById(id) {
+    try {
+      const res = await this.makeQuery('SELECT * FROM channels WHERE id = $1', [id]);
+      if (res.rows.length > 0 && res.rows[0].id) {
+        return res.rows[0];
+      }
+      return null;
+    } catch (error) {
+      console.log('ERROR: ' + error.message);
+      return null;
+    }
   }
 
   async getUserByLoginPass(login, pass) {
@@ -76,6 +205,7 @@ export default class DBService {
       return null;
     } catch (error) {
       console.log('ERROR: ' + error.message);
+      return null;
     }
  }
 
@@ -88,6 +218,7 @@ export default class DBService {
       return null;
     } catch (error) {
       console.log('ERROR: ' + error.message);
+      return null;
     }
   }
 
@@ -110,19 +241,44 @@ export default class DBService {
       return null;
     } catch(error) {
       console.log('ERROR: ' + error.message);
+      return null;
     }
   }
 
-  async createUser(login, pass, email) {
+  async createUser(login, pass, email, image = null) {
     try {
       const res = await this.makeQuery(`
-        INSERT INTO users (login, password, email)
-        VALUES ($1, $2, $3);
-      `, [login, pass, email]);
+        INSERT INTO users (login, password, email, image) VALUES ($1, $2, $3, $4);
+      `, [login, pass, email, image]);
       if (res) return res;
         return null;
      } catch(error) {
        console.log('ERROR: ' + error.message);
+       return null;
+     }
+  }
+
+  async updateUser(id, pass = '', image = '') {
+    try {
+      let res;
+      if (pass === '' && image !== '') res = await this.makeQuery('UPDATE users SET image = $1 where id = $2', [image, id]);
+      if (pass !== '' && image === '') res = await this.makeQuery('UPDATE users SET password = $1 where id = $2', [pass, id]);
+      if (pass !== '' && image !== '') res = await this.makeQuery('UPDATE users SET password = $1, image = $2 where id = $3', [pass, image, id]);
+
+      if (res) {
+        for (let i = 0; i < this.userList.length; i++) {
+          if (this.userList[i].id === id) {
+            if (image !== '') this.userList[i].image = image;
+            return this.userList[i];
+          }
+        }
+        return null;
+      } else {
+        return null;
+      }
+     } catch(error) {
+       console.log('ERROR: ' + error.message);
+       return null;
      }
   }
 
@@ -137,6 +293,7 @@ export default class DBService {
         return null;
       } catch(error) {
         console.log('ERROR: ' + error.message);
+        return null;
       }
   }
 
@@ -151,5 +308,55 @@ export default class DBService {
       this.userTokens[token] = -1;
     }
       return this.userTokens[token];
+  }
+
+  async subscribeToChannel(userId, chanId) {
+    try {
+      for (let i = 0 ; i < this.userList.length; i++) {
+        if (+this.userList[i].id === +userId) {
+          if (!this.userList[i].channels.includes(chanId)) {
+            await this.makeQuery('INSERT INTO channelusers (user_id, channel_id) VALUES ($1, $2)', [userId, chanId]);
+            this.userList[i].channels.push(chanId);
+            return this.userList[i];
+          } else {
+            return this.userList[i];
+          }
+        }
+      }
+      return 0;
+    } catch (error) {
+      console.log('ERROR: ' + error.message);
+      return 0;
+    }
+  }
+
+  async unsubscribeFromChannel(userId, chanId) {
+    try {
+      for (let i = 0 ; i < this.userList.length; i++) {
+        if (+this.userList[i].id === +userId) {
+            await this.makeQuery('DELETE FROM channelusers WHERE user_id = $1 AND channel_id = $2', [userId, chanId]);
+            this.userList[i].channels = this.userList[i].channels.filter((e => e !== chanId));
+            return this.userList[i];
+        }
+      }
+      return 0;
+    } catch (error) {
+      console.log('ERROR: ' + error.message);
+      return 0;
+    }
+  }
+
+  getUserFromUserListById(id) {
+    for (let i of this.userList) {
+      if (+i.id === +id) return i;
+    }
+    return null;
+  }
+
+  getChannelFromChannelListById(id) {
+    for (let i of this.channelList) {
+      if (+i.id === +id) return i;
+    }
+    return null;
   }
 }

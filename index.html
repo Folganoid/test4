@@ -1,8 +1,13 @@
 <html>
    <head>
    <script>
-       const webSocketChat = new WebSocket('ws://localhost:7000/chat');
-       const webSocketSystem = new WebSocket('ws://localhost:7000/system');
+      // localhost   
+        const webSocketChat = new WebSocket('ws://localhost:7000/chat');
+        const webSocketSystem = new WebSocket('ws://localhost:7000/system');
+
+       //// AMAZON VM
+       //const webSocketChat = new WebSocket('ws://ec2-52-47-120-240.eu-west-3.compute.amazonaws.com:7000/chat');
+       //const webSocketSystem = new WebSocket('ws://ec2-52-47-120-240.eu-west-3.compute.amazonaws.com:7000/system');
        webSocketChat.onmessage = (event) => {
            const data1 = JSON.parse(event.data);
            console.log(data1);
@@ -34,6 +39,14 @@
           const data = {
             msg: 'IAmOnline',
             token: document.getElementById('token').value,
+            user: {
+              id: 1,
+              login: 'xxx',
+              email: 'sss@ss.ss',
+              created: '123414',
+              channels: [],
+              isOnline: true
+            }
           };
           webSocketSystem.send(JSON.stringify(data));
        }
@@ -45,7 +58,11 @@
        }
 
        async function post() {
-        const url = 'http://localhost:5000/login';
+        //localhost
+        const url = 'http://localhost:5000/login'; 
+
+        //AMAZON VM
+        //const url = 'http://ec2-52-47-120-240.eu-west-3.compute.amazonaws.com:5000/login';
         const data = {
           login: "33",
           pass: "33"
@@ -53,7 +70,7 @@
         // Default options are marked with *
         const response = await fetch(url, {
           method: 'POST', // *GET, POST, PUT, DELETE, etc.
-          //mode: 'cors', // no-cors, *cors, same-origin
+          mode: 'cors', // no-cors, *cors, same-origin
          // cache: 'default', // *default, no-cache, reload, force-cache, only-if-cached
           //credentials: 'same-origin', // include, *same-origin, omit
           headers: {
@@ -65,7 +82,7 @@
           body: JSON.stringify(data) // body data type must match "Content-Type" header
         });
           const content = await response.json(); // parses JSON response into native JavaScript objects
-          return content.message;
+          return content;
        }
 
      </script>
