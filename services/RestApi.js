@@ -31,6 +31,14 @@ export default class RestApi {
         }
       });
 
+      this.app.post('/logout', async(req, res) => {
+        try {
+          this.routes.postLogOutHandler(req, res, this.db, this.wss);
+        } catch(e) {
+          res.status(500).send('Server error: ' + e.message);
+        }
+      });
+
       this.app.post('/registration', async (req, res) => {
         try {
           this.routes.postRegistrationHandler(req, res, this.db, this.wss);

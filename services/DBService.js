@@ -23,8 +23,8 @@ export default class DBService {
     }
     console.log(this.userList.length + ' Users data cached OK...')
 
-    const messages = await this.makeQuery('SELECT * FROM messages ORDER BY created DESC LIMIT 10000;');
-    this.messageList = messages.rows;
+    const messages = await this.makeQuery('SELECT * FROM messages ORDER BY created DESC LIMIT $1;', [this.cfg.fetchMessagesLimitInStart]);
+    this.messageList = messages.rows.sort((a, b) => a.create > b.create ? 1 : -1);
     console.log(this.messageList.length + ' Messages data cached OK...')
 
     const channels = await this.makeQuery('SELECT c.id, c.name, c.description, c.owner_user_id FROM channels as c;');

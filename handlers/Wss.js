@@ -6,8 +6,6 @@ import OtherService from '../services/OtherService.js';
 
 export default class Wss {
 
-  MESSAGE_LENGTH_LIMIT = 1024;
-
   server = createServer();
   clientsChat = new Map();
   clientsSystem = new Map();
@@ -82,7 +80,7 @@ export default class Wss {
             if (this.db.userList[i].id === checkToken) this.db.userList[i].isOnline = true;
           }
           delete(message.token);
-          if (message.msg.length > this.MESSAGE_LENGTH_LIMIT) message.msg = message.msg.substring(0, this.MESSAGE_LENGTH_LIMIT);
+          if (message.msg.length > this.cfg.messageLength) message.msg = message.msg.substring(0, this.cfg.messageLength);
           const outbound = JSON.stringify(message);
           this.wssSend(outbound, 'system');
         }
@@ -91,7 +89,7 @@ export default class Wss {
   
     ws.on("close", () => {
       this.clientsSystem.delete(ws);
-      if (this.usersOnline[id]) {
+      if (this.usersOnline[id] && this.usersOnline[id] > 0) {
         this.wssSend(JSON.stringify({msg: 'IamOffline', type: 'system', sender: this.usersOnline[id]}), 'system');
       }
       for (let i = 0; i < this.db.userList.length; i++) {
@@ -116,7 +114,7 @@ export default class Wss {
         if (checkToken && checkToken > 0) {
           message.sender = checkToken;
           delete(message.token);
-          if (message.msg.length > this.MESSAGE_LENGTH_LIMIT) message.msg = message.msg.substring(0, this.MESSAGE_LENGTH_LIMIT);
+          if (message.msg.length > this.cfg.messageLength) message.msg = message.msg.substring(0, this.cfg.messageLength);
           this.buildMessage(checkToken, message.channel, message.msg)
           const outbound = JSON.stringify(message);
           this.wssSend(outbound, 'chat');

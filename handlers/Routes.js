@@ -87,6 +87,32 @@ export default class Routes {
     }
   }
 
+  async postLogOutHandler(req, res, db, wss) {
+    if (req && req.headers && req.headers.authorization) {
+      const token = req.headers.authorization.replace('Bearer ', '');
+      const user = await db.getUserByToken(token);
+      if (user && user.id) {
+        for (const [key, value] of Object.entries(wss.usersOnline)) {
+          if (value === user.id) {
+            wss.usersOnline[key] = -1;
+            wss.wssSend(JSON.stringify({msg: 'IamOffline', type: 'system', sender: user.id}), 'system');
+            break;
+          }
+        }
+
+        for (let i = 0; i < db.userList.length; i++) {
+          if (db.userList[i].id === user.id) db.userList[i].isOnline = false;
+        }
+        await db.newToken(user.id);
+        res.status(200).send('ok');
+      } else {
+        res.status(401).send('user not found');    
+      }
+    } else {
+      res.status(400).send('Bad request data');
+    }
+  }
+
   async postRegistrationHandler(req, res, db, wss) {
     if (req && req.body && req.body.login && req.body.pass && req.body.email) {
       const user = await db.getUserByLoginOrEmail(req.body.login, req.body.email);
@@ -140,12 +166,12 @@ export default class Routes {
   }
 
   async postChannelHandler(req, res, db, wss) {
-    if (req && req.body && req.body.name && req.body.desc) {
+    if (req && req.body && req.body.name && req.body.description) {
        
       if (req.headers && req.headers.authorization) {
         const user = await db.getUserByToken(req.headers.authorization.replace('Bearer ', ''));
         if (user && user.id) {
-            const chan = await db.createChannel(user.id, req.body.name, req.body.desc)
+            const chan = await db.createChannel(user.id, req.body.name, req.body.description)
             if (chan === -1) {
                res.status(400).send('Channel already exists ' + req.body.name);  
             } else if (chan === 0) {
@@ -174,14 +200,14 @@ export default class Routes {
   }
 
   async putChannelHandler(req, res, db, wss) {
-    if (req && req.body && (req.body.name || req.body.desc)) {
+    if (req && req.body && (req.body.name || req.body.description)) {
       if (req.headers && req.headers.authorization) {
         const user = await db.getUserByToken(req.headers.authorization.replace('Bearer ', ''));
         if (user && user.id) {
             const chan = await db.getChannelById(req.params.id)
             if (chan && chan.id > 0) {
               if (chan.owner_user_id === user.id) {
-                const result = await db.updateChannel(chan.id, req.body.name || "", req.body.desc || "");
+                const result = await db.updateChannel(chan.id, req.body.name || "", req.body.description || "");
                 if (result === -1) {
                     res.status(400).send('Channel already exists ' + req.body.name);
                 } else if (result && result.id) {
