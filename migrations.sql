@@ -2,7 +2,7 @@ DROP TABLE IF EXISTS users CASCADE;
 CREATE TABLE users (
 	id serial PRIMARY KEY,
 	login VARCHAR ( 50 ) UNIQUE NOT NULL,
-	password VARCHAR ( 50 ) NOT NULL,
+	password VARCHAR ( 255 ) NOT NULL,
 	email VARCHAR ( 255 ) UNIQUE NOT NULL,
     image VARCHAR ( 255 ),
 	created TIMESTAMP with time zone NOT NULL DEFAULT timezone('UTC', now()),

@@ -1,6 +1,6 @@
-import RestApi from './services/RestApi.js';
-import Wss from './handlers/Wss.js';
-import DBService from './services/DBService.js';
+import RestApi from "./services/RestApi.js";
+import Wss from "./handlers/Wss.js";
+import DBService from "./services/DBService.js";
 
 const dbConnect = new DBService();
 dbConnect.start();
