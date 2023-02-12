@@ -22,7 +22,7 @@ export default class AppConfig {
 
       fetchMessagesLimitInStart: 10000,
       messageLength: 1024,
-      httpLogFile: "./http_logs.txt",
+      httpLogFile: "./http_logs.csv",
     };
   }
 }

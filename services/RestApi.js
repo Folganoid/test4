@@ -21,6 +21,8 @@ export default class RestApi {
   routes = new Routes();
 
   start() {
+    this.logger.newFile(this.cfg.httpLogFile);
+
     this.app.use(express.json());
     this.app.use(cors({ origin: "*" }));
     this.app.use(this.logger.saveLog);

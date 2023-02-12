@@ -2,10 +2,21 @@ import fs from "fs";
 import AppConfig from "../AppConfig.js";
 
 export default class Logger {
+  newFile(httpLogFile) {
+    fs.writeFile(
+      httpLogFile,
+      `Time\tMethod\tURL\tBenchmark\tResponse code\tResponse message\tHeaders\tBody\tResponse Headers\tRespoonse Boby\n`,
+      function (err) {
+        if (err) throw err;
+        console.log(`HTTP request-respone logfile "${httpLogFile}" created...`);
+      }
+    );
+  }
+
   saveLog(req, res, next) {
     try {
-      const { rawHeaders, method, socket, url } = req;
-      const { remoteAddress, remoteFamily } = socket;
+      if (!req || !res) next();
+      const { rawHeaders, method, url } = req;
       const { statusCode, statusMessage } = res;
       const headers = res.getHeaders();
       const startTime = new Date();
@@ -22,28 +33,40 @@ export default class Logger {
 
       res.end = function (chunk) {
         if (chunk) chunks.push(chunk);
-        const bodyRes = Buffer.concat(chunks).toString("utf8");
+        try {
+          const bodyRes = Buffer.concat(chunks).toString("utf8");
 
-        const reqLog = JSON.stringify({
-          method,
-          url,
-          benchmark: (new Date() - startTime) / 1000 + " sec",
-          rawHeaders,
-          body: req.body,
-          remoteAddress,
-          remoteFamily,
-          response: {
-            statusCode,
-            statusMessage,
-            headers,
-            body: bodyRes,
-          },
-        });
+          // const reqLog = {
+          //   method,
+          //   url,
+          //   benchmark: (new Date() - startTime) / 1000 + " sec",
+          //   rawHeaders,
+          //   body: req.body,
+          //   response: {
+          //     statusCode,
+          //     statusMessage,
+          //     headers,
+          //     body: bodyRes,
+          //   },
+          // };
 
-        const logStr = startTime.toString() + ": " + reqLog + "\n";
-        fs.appendFile(cfg.httpLogFile, logStr, function (err) {
-          if (err) throw err;
-        });
+          let logStr = `${startTime.toISOString()}\t`;
+          logStr += `${method}\t`;
+          logStr += `${url}\t`;
+          logStr += (new Date() - startTime) / 1000 + " sec\t";
+          logStr += `${statusCode}\t`;
+          logStr += `${statusMessage || ""}\t`;
+          logStr += `${JSON.stringify(rawHeaders)}\t`;
+          logStr += `${JSON.stringify(req.body)}\t`;
+          logStr += `${JSON.stringify(headers)}\t`;
+          logStr += `${bodyRes}\n`;
+
+          fs.appendFile(cfg.httpLogFile, logStr, function (err) {
+            if (err) throw err;
+          });
+        } catch (e) {
+          //pass saving
+        }
         oldEnd.apply(res, arguments);
       };
       next();
