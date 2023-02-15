@@ -1,4 +1,9 @@
+import AppConfig from "../AppConfig.js";
+
 export default class Routes {
+  appcfg = new AppConfig();
+  cfg = this.appcfg.getConfig();
+
   async getUsersHandler(req, res, db) {
     if (req && req.headers && req.headers.authorization) {
       const user = await db.getUserByToken(
@@ -203,6 +208,7 @@ export default class Routes {
               });
               user.token = token;
               user.isOnline = false;
+              user.channels = [this.cfg.defaultChannelId];
               delete user.password;
               const data = {
                 msg: "newUserRegistered",
@@ -211,12 +217,13 @@ export default class Routes {
                   login: user.login,
                   email: user.email,
                   created: user.created,
-                  channels: [],
+                  channels: [this.cfg.defaultChannelId],
                   image: user.image,
                   isOnline: false,
                 },
                 type: "system",
               };
+              db.subscribeToChannel(user.id, this.cfg.defaultChannelId);
               wss.wssSend(JSON.stringify(data), "system");
               res.status(200).send(user);
             } else {

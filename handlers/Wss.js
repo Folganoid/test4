@@ -16,7 +16,7 @@ export default class Wss {
   cfg = this.appcfg.getConfig();
 
   setRestApi(rest) {
-    this.restApi = rest;
+    this.restA = rest;
   }
 
   setDBConnect(db) {
@@ -130,7 +130,7 @@ export default class Wss {
           if (message.msg.length > this.cfg.messageLength) {
             message.msg = message.msg.substring(0, this.cfg.messageLength);
           }
-          this.buildMessage(checkToken, message.channel, message.msg, time);
+          this.buildMessage(checkToken, message.channel_id, message.msg, time);
           const outbound = JSON.stringify(message);
           this.wssSend(outbound, "chat");
         }

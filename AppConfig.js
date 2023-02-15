@@ -22,6 +22,7 @@ export default class AppConfig {
 
       fetchMessagesLimitInStart: 10000,
       messageLength: 1024,
+      defaultChannelId: 1,
       httpLogFile: "./http_logs.csv",
     };
   }
